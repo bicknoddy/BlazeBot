@@ -1,38 +1,58 @@
 import os
+from os import path
 import random
+import discord
+import db
 
 from discord.ext import commands
 from dotenv import load_dotenv
 
+intents = discord.Intents.default()
+intents.members = True
+
+
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
-bot = commands.Bot(command_prefix='$')
+bot = commands.Bot(command_prefix='$', intents=intents)
+
 
 @bot.event
 async def on_ready():
     print(f'{bot.user.name} connected to Discord, meow')
+    await bot.change_presence(activity=discord.Activity(type = discord.ActivityType.watching, name = 'the birds'))
+
 
 @bot.event
-async def on_member_update(before, after):
-    print("this member has been updated")
+async def on_guild_join(guild):
+    db.add_guild(guild.id, guild.name)
+    print("Just added {guild.name} to the database")
+
 
 @bot.event
 async def on_member_join(member):
-    await member.create_dm()
-    await member.dm_channel.send(
-        f'Meow, meow meow {member.name}, meow meeeeeeow!'
-    )
+    desired_channel = discord.utils.get(member.guild.text_channels, name = "general")
+    await desired_channel.send(f"Meow, {member.mention} welcome to the channel *bro*")
+    db.add_user(member.id, member.name, member.joined_at, member.guild.id)
+    print("added {member.name} to db")
 
-#regular commands
 
-@bot.command(name='val', help="Phrase that is related to your skill level")
-async def valy(ctx):
+
+@bot.command()
+async def points(ctx):
+    db.update_points(ctx.author.id, ctx.guild.id, 10)
+
+@bot.command(help="The sorting hat for Valorant")
+async def val(ctx):
     shit_talk = [
-        'U are bad',
-        'Meow, ur ok.',
-        'Penta or die',
-        'u ain\'t radient yet??',
+        'Radient',
+        'Immortal',
+        'Diamond',
+        'Plat',
+        'Gold',
+        'Silver',
+        'Bronze',
+        'Iron'
     ]
 
     response = random.choice(shit_talk)
@@ -40,9 +60,12 @@ async def valy(ctx):
 
 #joke commands
 
-@bot.command(name='pp', help="Who has smol pp")
+@bot.command(help="Who has smol pp")
 async def pp(ctx):
-    aut = ctx.author.nick.capitalize()
+    try:
+        aut = ctx.author.nick.capitalize()
+    except:
+        aut = ctx.author.name.capitalize()
 
     peepees = [
         '{} is hiding their one inch peen',
@@ -59,27 +82,12 @@ async def pp(ctx):
     response = random.choice(peepees)
     await ctx.send(response.format(aut))
 
-#dumb name commands lol
-
-@bot.command()
-async def boddy(ctx):
-    await ctx.send("Wow, Boddy is the best person here....by far. <3")
-
-@bot.command(name='dyl')
-async def dyl(ctx):
-    await ctx.send("Yeah, I mean, he's aight.")
-
-@bot.command(name='dom')
-async def dom(ctx):
-    await ctx.send("All hail our el presidente")
-
-@bot.command(name='ethan')
-async def ethan(ctx):
-    await ctx.send("Who let this guy in here??")
-
-@bot.command(name='aut', help='Aut gives words of wisdom')
+@bot.command(help='Aut gives words of wisdom')
 async def aut(ctx):
-    aut = ctx.author.nick.capitalize()
+    try:
+        aut = ctx.author.nick.capitalize()
+    except:
+        aut = ctx.author.name.capitalize()
 
     positives = [
         'Keep up the good work, {}',
@@ -91,6 +99,40 @@ async def aut(ctx):
     ]
     response = random.choice(positives)
     await ctx.send(response.format(aut))
+
+#dumb name commands lol
+
+@bot.command()
+async def boddy(ctx):
+    await ctx.send("Wow, Boddy is the best person here....by far. <3")
+
+@bot.command()
+async def dyl(ctx):
+    await ctx.send("Yeah, I mean, he's aight.")
+
+@bot.command()
+async def dom(ctx):
+    await ctx.send("All hail our el presidente")
+
+@bot.command()
+async def ethan(ctx):
+    await ctx.send("Who let this guy in here??")
+
+#Games
+
+@bot.command(help="Flip a coin!")
+async def flip(ctx):
+    flip = random.randint(0, 1)
+    if flip == 1:
+        await ctx.send("Nice u got heads. :coin:")
+    else:
+        await ctx.send("Tails nvr fails. :snake:")
+
+@bot.command(help="Throw some dice!")
+async def dice(ctx):
+    dice1 = random.randint(1, 6)
+    dice2 = random.randint(1, 6)
+    await ctx.send("You rolled a {}, and a {}!".format(dice1, dice2))
 
 
 bot.run(TOKEN)
